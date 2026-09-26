@@ -1,0 +1,75 @@
+name: DeepEval Tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'llmapp09/deepeval-tests/**'
+      - 'llmapp09/llm-multiroute/**'
+      - 'llmapp09/docker-compose.yml'
+      - '.github/workflows/deepeval-tests-ci.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'llmapp09/deepeval-tests/**'
+      - 'llmapp09/llm-multiroute/**'
+      - 'llmapp09/docker-compose.yml'
+      - '.github/workflows/deepeval-tests-ci.yml'
+  workflow_dispatch:
+
+env:
+  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+  OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+permissions:
+  contents: read
+
+jobs:
+  deepeval:
+    name: DeepEval LLM Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: llmapp09/deepeval-tests/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r llmapp09/deepeval-tests/requirements.txt
+
+      - name: Check live evaluation configuration
+        run: |
+          test -n "$OLLAMA_API_KEY" || { echo "Set repository secret OLLAMA_API_KEY before running live evaluation."; exit 1; }
+          test -n "$OLLAMA_BASE_URL" || { echo "Set repository secret OLLAMA_BASE_URL before running live evaluation."; exit 1; }
+          test -n "$OPENAI_API_KEY" || { echo "Set repository secret OPENAI_API_KEY before running live evaluation."; exit 1; }
+
+      - name: Build and start backend
+        run: docker compose -f llmapp09/docker-compose.yml up -d --build --wait llm-multiroute
+
+      - name: Run DeepEval classify tests
+        working-directory: llmapp09/deepeval-tests
+        run: deepeval test run test_classify.py -v
+
+      - name: Run DeepEval sentiment tests
+        working-directory: llmapp09/deepeval-tests
+        run: deepeval test run test_sentiment.py -v
+
+      - name: Run DeepEval summarize tests
+        working-directory: llmapp09/deepeval-tests
+        run: deepeval test run test_summarize.py -v
+
+      - name: Run DeepEval intent tests
+        working-directory: llmapp09/deepeval-tests
+        run: deepeval test run test_intent.py -v
+
+      - name: Tear down backend
+        if: always()
+        run: docker compose -f llmapp09/docker-compose.yml down

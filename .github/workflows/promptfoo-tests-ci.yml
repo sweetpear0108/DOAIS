@@ -1,0 +1,69 @@
+name: PromptFoo Tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'llmapp09/promptfoo-tests/**'
+      - 'llmapp09/llm-multiroute/**'
+      - 'llmapp09/docker-compose.yml'
+      - '.github/workflows/promptfoo-tests-ci.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'llmapp09/promptfoo-tests/**'
+      - 'llmapp09/llm-multiroute/**'
+      - 'llmapp09/docker-compose.yml'
+      - '.github/workflows/promptfoo-tests-ci.yml'
+  workflow_dispatch:
+
+env:
+  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+  OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
+
+permissions:
+  contents: read
+
+jobs:
+  promptfoo-eval:
+    name: PromptFoo Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check live evaluation configuration
+        run: |
+          test -n "$OLLAMA_API_KEY" || { echo "Set repository secret OLLAMA_API_KEY before running live evaluation."; exit 1; }
+          test -n "$OLLAMA_BASE_URL" || { echo "Set repository secret OLLAMA_BASE_URL before running live evaluation."; exit 1; }
+
+      - name: Build and start backend
+        run: |
+          docker compose -f llmapp09/docker-compose.yml up -d --build --wait llm-multiroute
+        working-directory: .
+
+      - name: Run PromptFoo classify evaluation
+        working-directory: llmapp09/promptfoo-tests
+        run: npx promptfoo@latest eval --no-cache --max-concurrency 1 -c classify.yaml
+
+      - name: Run PromptFoo sentiment evaluation
+        working-directory: llmapp09/promptfoo-tests
+        run: npx promptfoo@latest eval --no-cache --max-concurrency 1 -c sentiment.yaml
+
+      - name: Run PromptFoo summarize evaluation
+        working-directory: llmapp09/promptfoo-tests
+        run: npx promptfoo@latest eval --no-cache --max-concurrency 1 -c summarize.yaml
+
+      - name: Run PromptFoo intent evaluation
+        working-directory: llmapp09/promptfoo-tests
+        run: npx promptfoo@latest eval --no-cache --max-concurrency 1 -c intent.yaml
+
+      - name: Tear down backend
+        if: always()
+        run: docker compose -f llmapp09/docker-compose.yml down
+        working-directory: .

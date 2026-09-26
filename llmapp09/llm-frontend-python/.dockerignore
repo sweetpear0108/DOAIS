@@ -1,0 +1,13 @@
+.env
+.env.*
+venv
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+.pytest_cache
+.ruff_cache
+k8s
+*.md
+build.sh

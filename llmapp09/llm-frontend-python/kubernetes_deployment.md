@@ -1,26 +1,18 @@
-# deployment script at llm-frontend-python/k8s/deployment.yaml. The
-  
-  ## file includes:
-  ┌────────────┬───────────────────────────────────────────────┐
-  │  Resource  │                     Name                      │
-  ├────────────┼───────────────────────────────────────────────┤
-  │ Namespace  │ llm-frontend                                  │
-  ├────────────┼───────────────────────────────────────────────┤
-  │ Deployment │ llm-frontend-app                              │
-  ├────────────┼───────────────────────────────────────────────┤
-  │ Container  │ llm-frontend-container                        │
-  ├────────────┼───────────────────────────────────────────────┤
-  │ Service    │ llm-frontend-service (ClusterIP on port 5000) │
-  ├────────────┼───────────────────────────────────────────────┤
-  │ ConfigMap  │ llm-frontend-config                           │
-  └────────────┴───────────────────────────────────────────────┘
-  
-  ## Key configurations:
-  - Container port: 5000 (matching the Flask app)
-  - Image: darryl1975/llm-frontend-python:latest
-  - Backend URL configured via ConfigMap to connect to the llm-multiroute service  
-  - Health probes pointing to the root endpoint /
-  - Resource limits: 256Mi memory, 250m CPU
-  
-  ## To deploy:
-  kubectl apply -f llm-frontend-python/k8s/deployment.yaml 
+# Minikube frontend
+
+After deploying the backend, run from `llmapp09/` in another terminal:
+
+```sh
+minikube image load llm-frontend-python:workshop
+kubectl apply -f llm-frontend-python/k8s/deployment.yaml
+kubectl rollout status deployment/llm-frontend-app -n llm-frontend
+kubectl port-forward svc/llm-frontend-service -n llm-frontend 5000:5000
+```
+
+Open http://localhost:5000. The frontend ConfigMap uses the backend Service's full
+DNS name in `llm-multiroute-backend`, allowing communication across namespaces.
+Both probes check `/`; Flask debug mode is disabled.
+
+To use a CI image, run `kubectl set image deployment/llm-frontend-app
+llm-frontend-container=<your Docker Hub username>/llm-frontend-python:sha-<full commit SHA>
+-n llm-frontend`. The default manifest uses the image loaded into Minikube.

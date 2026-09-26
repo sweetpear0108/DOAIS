@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: llm-multiroute-container
-          image: darryl1975/llm-multiroute:1.0.0
+          image: llm-multiroute:workshop
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -65,6 +65,9 @@ spec:
                 secretKeyRef:
                   name: llm-multiroute-secret
                   key: OLLAMA_API_KEY
+          volumeMounts:
+            - name: metrics
+              mountPath: /app/metrics
           resources:
             requests:
               memory: "256Mi"
@@ -84,6 +87,10 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
+      volumes:
+        - name: metrics
+          persistentVolumeClaim:
+            claimName: llm-metrics
 ---
 apiVersion: v1
 kind: Service
@@ -114,13 +121,12 @@ data:
   LANGFUSE_HOST: "https://cloud.langfuse.com"
 ---
 apiVersion: v1
-kind: Secret
+kind: PersistentVolumeClaim
 metadata:
-  name: llm-multiroute-secret
+  name: llm-metrics
   namespace: llm-multiroute-backend
-type: Opaque
-data:
-  OLLAMA_API_KEY: 
-  # Base64 encoded API key - replace with: echo -n 'your-api-key' | base64
-  LANGFUSE_PUBLIC_KEY: 
-  LANGFUSE_SECRET_KEY: 
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi

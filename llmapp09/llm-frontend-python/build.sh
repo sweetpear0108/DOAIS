@@ -1,2 +1,7 @@
-  docker build --platform linux/arm64 -t darryl1975/llm-frontend-python:latest .        
-  docker push darryl1975/llm-frontend-python:latest 
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")"
+: "${DOCKERHUB_USERNAME:?Set your Docker Hub username}"
+image="$DOCKERHUB_USERNAME/llm-frontend-python:${IMAGE_TAG:-latest}"
+docker build -t "$image" .
+docker push "$image"
